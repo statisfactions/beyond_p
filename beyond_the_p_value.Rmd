@@ -1,0 +1,14 @@
+---
+title: "Beyond the P-Value: Visualizing and Embracing Uncertainty"
+output: html_notebook
+---
+
+## P-value: Living in the world of the null hypothesis
+
+
+## Preregistration
+- Preregister on Open Science
+
+
+## Visual hypothesis testing -- the line-up
+
