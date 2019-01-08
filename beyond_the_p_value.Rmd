@@ -3,7 +3,114 @@ title: "Beyond the P-Value: Visualizing and Embracing Uncertainty"
 output: html_notebook
 ---
 
+```{r setup}
+library(tidyverse)
+library(infer)
+library(readxl)
+```
+
+
 ## P-value: Living in the world of the null hypothesis
+
+I tried to bend a quarter to make it "unfair" and yield tails more often. Did I succeed?
+
+$$ H_0: p = 0.5$$
+$$H_A: p < 0.5$$
+
+Let's say I flip it 5 times and got heads only once.  How unusual is that under the null hypothesis? We can easily simulate this in R using the `infer` package:
+
+```{r test_heads}
+## Number of heads. Change this to see what happens!
+number_heads = 1
+n = 5
+observed_p = number_heads/n
+
+## Enter data
+my_data = data.frame(heads = c(rep(FALSE, n - number_heads), 
+                               rep(TRUE, number_heads)))
+
+null_heads = my_data %>% 
+  specify(response = heads, success = "TRUE") %>% 
+  hypothesize("point", p = 0.5) %>% 
+  generate(reps = 1000, type = "simulate") %>% 
+  calculate(stat = "prop")
+
+visualise(null_heads) + 
+  shade_pvalue(observed_p, direction = "less")
+
+```
+
+```{r}
+null_heads %>% 
+  get_pvalue(observed_p, direction = "less")
+```
+
+
+## Experiment 1 data
+
+`exp1.xlsx` contains 100 subjects who took the ESP test (tried to guess which curtain the picture was behind).  During each session, some of the pictures were erotic and some were non-erotic.
+
+Variables are as follows:
+
+  - *Session* Order in which participant was seen.
+  - *Session_Type* (Added EB) Some participants saw different combinations of stimuli.  This is my best guess from Bem's writing about which was which.
+  - *Num_Erotic* (Added EB) Number of erotic trials, varies by session type; my best guess.
+  - *Num_Control* (Added EB) Number of control trials, varies by session type; my best guess.
+  - *Erotic.Hits.PC* Percentage correct on erotic trials
+  - *Control.Hits.PC* Percentage correct on control trials
+  - *Stimulus.Seeking* 1-5 scale on how "stimulus-seeking" the participant is
+  - *Date*
+  - *StartTime*
+  - *Session.Length*
+  - *Participant.Sex*
+  - *Participant.Age*
+  - *ExpSex* ?
+
+Below is code for reading in all trials, calculating the overall hit rate, and testing whether it is significantly different from chance:
+
+$$ H_0 = \mu_\text{hit rate} = 50$$
+$$ H_A = \mu_\text{hit rate} > 50$$
+What did we actually see on average?
+```{r}
+# Original source: https://replicationindex.files.wordpress.com/2018/01/exp1.xlsx
+# Some variables added as noted above.
+
+exp1 = read_excel("exp1.xlsx")
+
+exp1_all_hits = exp1 %>%
+  mutate(All.Hits.PC = (Erotic.Hits.PC * Num_Erotic + Control.Hits.PC * Num_Control) * 100/(Num_Erotic + Num_Control))
+
+all_hits_mean = exp1_all_hits %>% 
+    specify(response = All.Hits.PC) %>% 
+    calculate(stat = "mean")
+
+all_hits_mean
+```
+
+```{r}
+null_all_hits = exp1_all_hits %>% 
+  specify(response = All.Hits.PC) %>% 
+  hypothesize(null = "point", mu = 50) %>% 
+  generate(reps = 1000, type = "bootstrap") %>% 
+  calculate(stat = "mean")
+
+visualize(null_all_hits) + 
+  shade_pvalue(all_hits_mean, direction = "greater")
+
+```
+```{r}
+null_all_hits %>% 
+  get_pvalue(all_hits_mean, direction = "greater")
+```
+
+We can also do a good old-fashioned t-test, for a similar result:
+
+```{r}
+t.test(exp1_all_hits$All.Hits.PC, mu = 50, alternative = "greater")
+```
+
+Can you find any significant findings here?
+
 
 
 ## Preregistration
