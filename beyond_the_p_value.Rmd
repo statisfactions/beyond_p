@@ -1,12 +1,29 @@
 ---
-title: "Beyond the P-Value: Visualizing and Embracing Uncertainty"
-output: html_notebook
+title: 'Beyond the P-Value: Visualizing and Embracing Uncertainty'
+output:
+  html_document:
+    df_print: paged
 ---
 
-```{r setup}
-library(tidyverse)
-library(infer)
-library(readxl)
+```{r setup, warning = F, message = F}
+packages = c("infer",
+             "dplyr",
+             "nullabor",
+             "ggplot2")
+
+## Figure out which packages are not installed and install them
+installed = vapply(packages, function(x) 
+  length(find.package(x, quiet = TRUE)) > 0, 
+  TRUE)
+
+if(any(!installed)) {
+  install.packages(packages[!installed])
+}
+
+## Load packages
+done = lapply(packages, require, character.only = TRUE)
+
+
 ```
 
 
@@ -17,7 +34,7 @@ I tried to bend a quarter to make it "unfair" and yield tails more often. Did I 
 $$ H_0: p = 0.5$$
 $$H_A: p < 0.5$$
 
-Let's say I flip it 5 times and got heads only once.  How unusual is that under the null hypothesis? We can easily simulate this in R using the `infer` package:
+Let's say I flip it 5 times and got heads only once.  How unusual is that under the null hypothesis? We can easily simulate this in R using the `infer` package
 
 ```{r test_heads}
 ## Number of heads. Change this to see what happens!
@@ -26,29 +43,44 @@ n = 5
 observed_p = number_heads/n
 
 ## Enter data
-my_data = data.frame(heads = c(rep(FALSE, n - number_heads), 
-                               rep(TRUE, number_heads)))
+my_data = data.frame(flip = c(rep("T", n - number_heads), 
+                               rep("H", number_heads)))
 
-null_heads = my_data %>% 
-  specify(response = heads, success = "TRUE") %>% 
+null_flips = my_data %>% 
+  specify(response = flip, success = "T") %>% 
   hypothesize("point", p = 0.5) %>% 
-  generate(reps = 1000, type = "simulate") %>% 
-  calculate(stat = "prop")
-
-visualise(null_heads) + 
-  shade_pvalue(observed_p, direction = "less")
+  generate(reps = 1000, type = "simulate")
 
 ```
 
+This simulates flipping a fair coin 5 times, and repeating the process 1000 times.  Here's the first three groups of 5: first thre 
+
 ```{r}
-null_heads %>% 
+head(null_flips, 15)
+
+```
+
+Then we calculate the number of heads per flip and plot the distribution of sets of flips, and see where one heads actually falls on that distribution.
+
+```{r}
+null_proportions = null_flips %>% 
+  calculate(stat = "prop")
+
+visualise(null_proportions) + 
+  shade_pvalue(observed_p, direction = "less")
+```
+
+The p-value is just the proportions of times we got one or fewer heads:
+
+```{r}
+null_proportions %>% 
   get_pvalue(observed_p, direction = "less")
 ```
 
 
 ## Experiment 1 data
 
-`exp1.xlsx` contains 100 subjects who took the ESP test (tried to guess which curtain the picture was behind).  During each session, some of the pictures were erotic and some were non-erotic.
+`exp1.csv` contains 100 subjects who took the ESP test (tried to guess which curtain the picture was behind).  During each session, some of the pictures were erotic and some were non-erotic.
 
 Variables are as follows:
 
@@ -75,7 +107,7 @@ What did we actually see on average?
 # Original source: https://replicationindex.files.wordpress.com/2018/01/exp1.xlsx
 # Some variables added as noted above.
 
-exp1 = read_excel("exp1.xlsx")
+exp1 = read.csv("exp1.csv", stringsAsFactors = FALSE)
 
 exp1_all_hits = exp1 %>%
   mutate(All.Hits.PC = (Erotic.Hits.PC * Num_Erotic + Control.Hits.PC * Num_Control) * 100/(Num_Erotic + Num_Control))
@@ -111,11 +143,52 @@ t.test(exp1_all_hits$All.Hits.PC, mu = 50, alternative = "greater")
 
 Can you find any significant findings here?
 
-
-
-## Preregistration
-- Preregister on Open Science
-
-
 ## Visual hypothesis testing -- the line-up
+
+The dataset `mtcars`, included in R, contains the fuel consumption (`mpg`) and weight (`wt`) of 32 cars in 1974.  See `?mtcars` for more information.
+
+Here, our question is: is there any visible relationship between `mpg` and `wt`?
+
+We can do a *visual hypothesis test*. We mix up `mpg` to break the relationship between `mpg` and `wt` using `lineup` from the *`nullabor`* package.  (The example below is taken from the *`nullabor`* vignette.)
+
+```{r}
+d = lineup(null_permute("mpg"), mtcars)
+
+ggplot(data=d, aes(x=mpg, y=wt)) + 
+  geom_point() + 
+  facet_wrap(~ .sample)
+
+```
+
+Can you tell which one is the real data?
+
+We can reveal the position by accessing the `"pos"` attribute, using `attr(d, "pos")`.  There are also features to hide the position from a user by using `encrypt()`!
+
+If one person correctly guesses the correct value, then the visual p-value to reject the null hypothesis is 0.05 -- they had a one in twenty chance of getting it correct.  If you ask more than one person and they all get it correct, that increases your ability to get a low visual p-value.  If 100 people are given the same 20 plots but only 15 get it correct, the p-value is still quite small:
+
+```{r}
+pvisual(15, 100, m = 20)
+```
+
+## Blinded analysis
+We can take this idea a step further and do a *whole analysis* where somehow the true value has been blinded.
+
+See `exp2_blinded.csv` for an example.
+
+## Bayesian analysis
+
+[https://tellmi.psy.lmu.de/felix/BayesLessons/BayesianLesson1.Rmd](Example app for Bayes)
+
+## Resources
+
+We're hear to help with any of this!
+
+Research Methodology Consulting Center: cehd.umn.edu/research/consulting/
+
+And our friends—
+LATIS: cla.umn.edu/latis 
+IRSA: irsa.stat.umn.edu
+Libraries: libraries.umn.edu
+DASH: dash.umn.edu
+
 
