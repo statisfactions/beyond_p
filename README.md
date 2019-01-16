@@ -10,9 +10,14 @@ To download the materials from this session, click "Clone or Download" and choos
 ## Resources Mentioned:
 
 [Research Methodology Consulting Center](http://cehd.umn.edu/research/consulting/)
+
 [AsPredicted.org](http://AsPredicted.org)
+
 [Open Science Framework](https://osf.io)
+
 [AsPredicted Example](https://aspredicted.org/3mu9d.pdf)
+
 [Nature News article on how to defeat cognitive biases in research](https://www.nature.com/news/how-scientists-fool-themselves-and-how-they-can-stop-1.18517)
+
 [Bayesian Example](https://tellmi.psy.lmu.de/felix/BayesLessons/BayesianLesson1.Rmd)
 
