@@ -38,7 +38,7 @@ Let's say I flip it 5 times and got heads only once.  How unusual is that under 
 
 ```{r test_heads}
 ## Number of heads. Change this to see what happens!
-number_heads = 1
+number_heads = 4
 n = 5
 observed_p = number_heads/n
 
@@ -47,13 +47,13 @@ my_data = data.frame(flip = c(rep("T", n - number_heads),
                                rep("H", number_heads)))
 
 null_flips = my_data %>% 
-  specify(response = flip, success = "T") %>% 
+  specify(response = flip, success = "H") %>% 
   hypothesize("point", p = 0.5) %>% 
   generate(reps = 1000, type = "simulate")
 
 ```
 
-This simulates flipping a fair coin 5 times, and repeating the process 1000 times.  Here's the first three groups of 5: first thre 
+This simulates flipping a fair coin 5 times, and repeating the process 1000 times.  Here's the first three groups of 5:
 
 ```{r}
 head(null_flips, 15)
@@ -67,16 +67,20 @@ null_proportions = null_flips %>%
   calculate(stat = "prop")
 
 visualise(null_proportions) + 
-  shade_pvalue(observed_p, direction = "less")
+  shade_pvalue(observed_p, direction = "greater")
 ```
 
 The p-value is just the proportions of times we got one or fewer heads:
 
 ```{r}
 null_proportions %>% 
-  get_pvalue(observed_p, direction = "less")
+  get_pvalue(observed_p, direction = "greater")
 ```
 
+
+There's a few great web apps for exploring this too.
+
+For the coin flip situation, I recommend the 
 
 ## Experiment 1 data
 
@@ -110,7 +114,7 @@ What did we actually see on average?
 exp1 = read.csv("exp1.csv", stringsAsFactors = FALSE)
 
 exp1_all_hits = exp1 %>%
-  mutate(All.Hits.PC = (Erotic.Hits.PC * Num_Erotic + Control.Hits.PC * Num_Control) * 100/(Num_Erotic + Num_Control))
+  mutate(All.Hits.PC = (Erotic.Hits.PC * Num_Erotic + Control.Hits.PC * Num_Control)/(Num_Erotic + Num_Control))
 
 all_hits_mean = exp1_all_hits %>% 
     specify(response = All.Hits.PC) %>% 
@@ -142,6 +146,16 @@ t.test(exp1_all_hits$All.Hits.PC, mu = 50, alternative = "greater")
 ```
 
 Can you find any significant findings here?
+
+```{r}
+t.test(exp1_all_hits$Erotic.Hits.PC, mu = 50, alternative = "greater")
+```
+
+```{r}
+t.test(exp1_all_hits$Control.Hits.PC, mu = 50, alternative = "greater")
+```
+
+
 
 ## Visual hypothesis testing -- the line-up
 
@@ -177,18 +191,20 @@ See `exp2_blinded.csv` for an example.
 
 ## Bayesian analysis
 
-[https://tellmi.psy.lmu.de/felix/BayesLessons/BayesianLesson1.Rmd](Example app for Bayes)
+[Example app for Bayes](https://tellmi.psy.lmu.de/felix/BayesLessons/BayesianLesson1.Rmd)
 
 ## Resources
 
-We're hear to help with any of this!
-
-Research Methodology Consulting Center: cehd.umn.edu/research/consulting/
+We're hear to help with any of this! [Research Methodology Consulting Center](http://cehd.umn.edu/research/consulting/)
 
 And our friends—
-LATIS: cla.umn.edu/latis 
-IRSA: irsa.stat.umn.edu
-Libraries: libraries.umn.edu
-DASH: dash.umn.edu
+
+[LATIS](https://cla.umn.edu/latis)
+
+[IRSA](https://irsa.stat.umn.edu)
+
+[Libraries](https://www.lib.umn.edu)
+
+[DASH](https://dash.umn.edu)
 
 

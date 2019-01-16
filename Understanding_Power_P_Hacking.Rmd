@@ -1,0 +1,112 @@
+---
+title: "Understanding Statistical Power and Avoiding P-Hacking"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+```{r setup, warning = F, message = F}
+packages = c("dplyr",
+             "purrr",
+             "ggplot2", 
+             "infer")
+
+## Figure out which packages are not installed and install them
+installed = vapply(packages, function(x) 
+  length(find.package(x, quiet = TRUE)) > 0, 
+  TRUE)
+
+if(any(!installed)) {
+  install.packages(packages[!installed])
+}
+
+## Load packages
+done = lapply(packages, require, character.only = TRUE)
+
+```
+
+## Mystery machine #1
+```{r}
+
+machine_spec = function(zero, mu) {
+  z = (zero - 1 + mu)/19
+  y = mu - 20*z
+  
+  c(zero, y, z)
+}
+
+outputs = c(0, 1, 20)
+probs = list(`mu = 0.2` = machine_spec(0.8, .3),
+             `mu = 0.7, low variability` = machine_spec(0.4, .7), 
+             `mu = 0.7, high variability` = machine_spec(0.9, .7),
+             `mu = 0.9, high variability` = machine_spec(0.9, 0.9))
+
+# lapply(probs, "%*%", outputs) ## get expected values
+
+n = 1500
+set.seed(40)
+machine_df = map_dfr(probs, ~ data.frame(Result = sample(outputs, prob = ., size = n, replace = TRUE), Sample_Size = 1:n), .id = "Machine") %>% 
+  group_by(Machine) %>% 
+  mutate(Cumulative_Mean = cummean(Result))
+
+
+single_attempt = ggplot(machine_df, aes(Sample_Size, Cumulative_Mean, 
+                       group = Machine, color = Machine)) +  
+  geom_line(size = 1.2) + theme(legend.position = "top") + scale_color_brewer(palette = "Set3")
+
+single_attempt
+```
+## Calculate null rejection region
+
+$$H_0: \mu = 0.90$$
+$$H_A: \mu < 0.90$$
+If anything, we expect the casinos to cheat the customers, not to favor them, so we only need a one-sided hypothesis.
+
+We can determine where the rejection region would be using simulation, again, for n = 1500.
+
+```{r}
+n = 1500
+K = 1000 # Number of trials
+gen_trials = function(prob, n, K, outputs) {
+  map_dbl(1:K, ~ mean(sample(outputs, prob = prob, size = n, replace = TRUE)))
+}
+
+alpha = 0.05
+cutoff = alpha*1500
+
+null_trials = data.frame(Mean_1500 = gen_trials(probs[[4]], n, K, outputs)) %>% 
+  arrange(Mean_1500) %>%
+  mutate(Below_Cutoff = (1:n()) < cutoff)
+  
+reject = max(null_trials$Mean_1500[null_trials$Below_Cutoff])
+
+ggplot(null_trials, aes(Mean_1500, color = Below_Cutoff)) + 
+  geom_dotplot(dotsize = 0.2) + scale_color_manual(values = c("red", "blue")) +
+  geom_vline(xintercept = reject) + 
+  theme(legend.position = "none") 
+```
+
+
+The bottom 5% of trials are below .748.  Now, we can calculate power for each of the scenarios above -- this is the proportion of trials where the mean is below 0.748.
+
+```{r}
+machine_trials = map_dfr(probs[-4], ~ data.frame(Mean_1500 = gen_trials(., n, K, outputs)), .id = "Machine") %>% 
+  arrange(Mean_1500) %>%
+  mutate(Rejected = Mean_1500 < reject)
+
+
+ggplot(machine_trials, aes(Mean_1500, color = Rejected)) + 
+  geom_dotplot(dotsize = 0.2) + scale_color_manual(values = c("red", "blue")) +
+  geom_vline(xintercept = reject) + 
+  facet_wrap(~ Machine) +
+  theme(legend.position = "none") 
+
+```
+Power in each case
+```{r}
+
+with(machine_trials, table(Machine, Rejected)) %>% prop.table(margin = 1)
+
+```
+
